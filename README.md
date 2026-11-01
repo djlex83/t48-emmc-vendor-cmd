@@ -12,6 +12,7 @@ need to close the gap. If you own an UFPI or an EasyJTAG, you may be able to ans
 question in ten minutes.
 
 Scope: device repair and data recovery on our own hardware. Not DRM circumvention.
+Details, authorization and legal posture: **[LEGAL.md](LEGAL.md)**.
 
 ---
 

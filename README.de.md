@@ -12,6 +12,7 @@ fehlt, um die Lücke zu schließen. Wer ein UFPI oder EasyJTAG besitzt, kann die
 vielleicht in zehn Minuten beantworten.
 
 Umfang: Gerätereparatur und Datenrettung an eigener Hardware. Keine DRM-Umgehung.
+Einzelheiten, Berechtigung und rechtliche Einordnung: **[LEGAL.de.md](LEGAL.de.md)**.
 
 ---
 
