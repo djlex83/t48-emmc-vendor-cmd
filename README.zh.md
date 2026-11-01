@@ -143,6 +143,9 @@ CMD18。我们有意没有发送 CMD38——在后门未打开时它是**擦除*
 * `AGENTS.md` — 给 AI 智能体与贡献者的工作说明：分析哪个二进制、搜索什么、如何开 issue。
   另有中文版 `AGENTS.zh.md`。
 * `docs/ufpi-findings.md` — 我们已知的 UFPI 与 EasyJTAG 命令处理情况。
+* `docs/rpmb-key-findings.zh.md` — 我们收集到的全部关于**RPMB 密钥来源**的资料：
+  两个工具视频、OP-TEE issue、我们的阴性结果，以及决定写入计划的 extCSD 数值。
+  另有[英文版](docs/rpmb-key-findings.md)与[德文版](docs/rpmb-key-findings.de.md)。
 * `scripts/` — 我们自己写的 T48 USB 协议驱动与探测脚本
   （`sub_op_probe.py`、`sub_op_timing.py`、`sub_op_capture.py`、`sub_op_stability.py`、
   `reply_width.py`、`vendor_forward_test.py`）。

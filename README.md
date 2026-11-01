@@ -159,6 +159,10 @@ exact menu path matter more than prose.
 * `AGENTS.md` — instructions for AI agents and contributors: which binary to analyse, what
   to search for, how to file an issue. Also available in Chinese (`AGENTS.zh.md`).
 * `docs/ufpi-findings.md` — what we already know about UFPI and EasyJTAG command handling.
+* `docs/rpmb-key-findings.md` — everything we gathered about *where the RPMB key comes
+  from*: two tool videos and the OP-TEE issue, our negative result, and the extCSD facts
+  that constrain the write plan. Also in [German](docs/rpmb-key-findings.de.md) and
+  [Chinese](docs/rpmb-key-findings.zh.md).
 * `scripts/` — our Python driver for the T48 USB protocol and the probe scripts
   (`sub_op_probe.py`, `sub_op_timing.py`, `sub_op_capture.py`, `sub_op_stability.py`,
   `reply_width.py`, `vendor_forward_test.py`).

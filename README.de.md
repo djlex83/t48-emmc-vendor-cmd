@@ -166,7 +166,12 @@ Tool-Version und der genaue Menüpfad sind wichtiger als Prosa.
 * `AGENTS.md` — Arbeitsanleitung für KI-Agenten und Beitragende: welches Binary analysiert
   wird, wonach gesucht wird, wie ein Issue angelegt wird. Auch auf Chinesisch
   (`AGENTS.zh.md`).
-* `docs/ufpi-findings.md` — was wir über die Kommandobehandlung von UFPI und EasyJTAG wissen.
+* `docs/ufpi-findings.md` — was wir über die Kommandobehandlung von UFPI und EasyJTAG wissen
+  (noch nur englisch).
+* `docs/rpmb-key-findings.de.md` — alles, was wir dazu zusammengetragen haben, **woher der
+  RPMB-Key kommt**: zwei Werkzeug-Videos und das OP-TEE-Issue, unser negatives Ergebnis und
+  die extCSD-Werte, die den Schreibplan bestimmen. Auch auf
+  [Englisch](docs/rpmb-key-findings.md) und [Chinesisch](docs/rpmb-key-findings.zh.md).
 * `scripts/` — unser Python-Treiber für das T48-USB-Protokoll und die Sonden-Skripte.
 
 Dieses Repository enthält kein RPMB-Schlüsselmaterial, keine Geräteseriennummern und
