@@ -142,7 +142,13 @@ CMD18。我们有意没有发送 CMD38——在后门未打开时它是**擦除*
   以及替换 FPGA 位流（德文）。
 * `AGENTS.md` — 给 AI 智能体与贡献者的工作说明：分析哪个二进制、搜索什么、如何开 issue。
   另有中文版 `AGENTS.zh.md`。
-* `docs/ufpi-findings.md` — 我们已知的 UFPI 与 EasyJTAG 命令处理情况。
+* `docs/ufpi-findings.md` — 我们已知的 UFPI 与 EasyJTAG 命令处理情况
+  （另有[德文版](docs/ufpi-findings.de.md)与[中文版](docs/ufpi-findings.zh.md)）。
+* `docs/sony-partitions.md` — 索尼 DTV 分区布局，以及为什么维修不需要 RPMB 密钥
+  （另有[德文版](docs/sony-partitions.de.md)与[中文版](docs/sony-partitions.zh.md)）。
+* `docs/t48-status.zh.md` — 完整状态记录：协议细节、已验证的写入/擦除测试、
+  RPMB 帧层，以及已解析的 `.alg` 容器
+  （另有[英文版](docs/t48-status.md)与[德文版](docs/t48-status.de.md)）。
 * `docs/rpmb-key-findings.zh.md` — 我们收集到的全部关于**RPMB 密钥来源**的资料：
   两个工具视频、OP-TEE issue、我们的阴性结果，以及决定写入计划的 extCSD 数值。
   另有[英文版](docs/rpmb-key-findings.md)与[德文版](docs/rpmb-key-findings.de.md)。

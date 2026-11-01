@@ -1,3 +1,5 @@
+[English](ufpi-findings.md) · [Deutsch](ufpi-findings.de.md) · [中文](ufpi-findings.zh.md)
+
 # UFPI and EasyJTAG — starting points for analysis
 
 Condensed from our own reverse-engineering notes (`EASYJTAG-HANDOFF.md` §9.11 and §9.12),

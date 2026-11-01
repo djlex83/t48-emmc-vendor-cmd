@@ -1,3 +1,5 @@
+[English](sony-partitions.md) · [Deutsch](sony-partitions.de.md) · [中文](sony-partitions.zh.md)
+
 # Sony DTV partition layout — findings
 
 Summary of what we determined from a Sony DTV firmware package (`sony_dtv0FA60A0AA0AA_…pkg`)

@@ -166,8 +166,16 @@ Tool-Version und der genaue Menüpfad sind wichtiger als Prosa.
 * `AGENTS.md` — Arbeitsanleitung für KI-Agenten und Beitragende: welches Binary analysiert
   wird, wonach gesucht wird, wie ein Issue angelegt wird. Auch auf Chinesisch
   (`AGENTS.zh.md`).
-* `docs/ufpi-findings.md` — was wir über die Kommandobehandlung von UFPI und EasyJTAG wissen
-  (noch nur englisch).
+* `docs/ufpi-findings.md` — was wir über die Kommandobehandlung von UFPI und EasyJTAG wissen.
+  Auch auf [Deutsch](docs/ufpi-findings.de.md) und
+  [Chinesisch](docs/ufpi-findings.zh.md).
+* `docs/sony-partitions.md` — das Sony-DTV-Partitionslayout und warum eine Reparatur keinen
+  RPMB-Key braucht. Auch auf [Deutsch](docs/sony-partitions.de.md) und
+  [Chinesisch](docs/sony-partitions.zh.md).
+* `docs/t48-status.de.md` — die vollständige Standaufzeichnung: Protokolldetails, die
+  verifizierten Schreib-/Löschtests, die RPMB-Frame-Schicht und der entschlüsselte
+  `.alg`-Container. Auch auf [Englisch](docs/t48-status.md) und
+  [Chinesisch](docs/t48-status.zh.md).
 * `docs/rpmb-key-findings.de.md` — alles, was wir dazu zusammengetragen haben, **woher der
   RPMB-Key kommt**: zwei Werkzeug-Videos und das OP-TEE-Issue, unser negatives Ergebnis und
   die extCSD-Werte, die den Schreibplan bestimmen. Auch auf

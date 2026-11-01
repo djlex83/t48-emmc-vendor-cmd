@@ -159,6 +159,13 @@ exact menu path matter more than prose.
 * `AGENTS.md` — instructions for AI agents and contributors: which binary to analyse, what
   to search for, how to file an issue. Also available in Chinese (`AGENTS.zh.md`).
 * `docs/ufpi-findings.md` — what we already know about UFPI and EasyJTAG command handling.
+  Also in [German](docs/ufpi-findings.de.md) and [Chinese](docs/ufpi-findings.zh.md).
+* `docs/sony-partitions.md` — the Sony DTV partition layout and why a repair needs no RPMB
+  key. Also in [German](docs/sony-partitions.de.md) and
+  [Chinese](docs/sony-partitions.zh.md).
+* `docs/t48-status.md` — the complete status record: protocol details, the verified
+  write/erase tests, the RPMB frame layer, and the decoded `.alg` container. Also in
+  [German](docs/t48-status.de.md) and [Chinese](docs/t48-status.zh.md).
 * `docs/rpmb-key-findings.md` — everything we gathered about *where the RPMB key comes
   from*: two tool videos and the OP-TEE issue, our negative result, and the extCSD facts
   that constrain the write plan. Also in [German](docs/rpmb-key-findings.de.md) and
