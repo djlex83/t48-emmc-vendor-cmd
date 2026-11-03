@@ -180,6 +180,10 @@ Tool-Version und der genaue Menüpfad sind wichtiger als Prosa.
   RPMB-Key kommt**: zwei Werkzeug-Videos und das OP-TEE-Issue, unser negatives Ergebnis und
   die extCSD-Werte, die den Schreibplan bestimmen. Auch auf
   [Englisch](docs/rpmb-key-findings.md) und [Chinesisch](docs/rpmb-key-findings.zh.md).
+* `docs/attack-tree.de.md` — der Analyseplan als Baum: welche Zweige durch Messung
+  geschlossen sind, welche offen bleiben, und welcher billigste Versuch jeden einzelnen
+  entscheidet. Zugleich die Checkliste für Beitragende. Auch auf
+  [Englisch](docs/attack-tree.md) und [Chinesisch](docs/attack-tree.zh.md).
 * `scripts/` — unser Python-Treiber für das T48-USB-Protokoll und die Sonden-Skripte.
 
 Dieses Repository enthält kein RPMB-Schlüsselmaterial, keine Geräteseriennummern und

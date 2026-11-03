@@ -152,6 +152,9 @@ CMD18。我们有意没有发送 CMD38——在后门未打开时它是**擦除*
 * `docs/rpmb-key-findings.zh.md` — 我们收集到的全部关于**RPMB 密钥来源**的资料：
   两个工具视频、OP-TEE issue、我们的阴性结果，以及决定写入计划的 extCSD 数值。
   另有[英文版](docs/rpmb-key-findings.md)与[德文版](docs/rpmb-key-findings.de.md)。
+* `docs/attack-tree.zh.md` — 以树形呈现的分析计划：哪些分支已被测量关闭，哪些仍未定论，
+  以及每个分支最便宜的判定实验。同时也是贡献者的开工清单。
+  另有[英文版](docs/attack-tree.md)与[德文版](docs/attack-tree.de.md)。
 * `scripts/` — 我们自己写的 T48 USB 协议驱动与探测脚本
   （`sub_op_probe.py`、`sub_op_timing.py`、`sub_op_capture.py`、`sub_op_stability.py`、
   `reply_width.py`、`vendor_forward_test.py`）。

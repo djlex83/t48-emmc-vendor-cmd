@@ -82,13 +82,83 @@ re-detect**, and stays identical across repeated reads. That is consistent with 
 state change (CMD60 firmware activation) rather than a static metadata block. Two sources,
 two mechanisms. Resolving this is exactly what issues A2 and Task C are for.
 
+### The export table is the only readable part (measured 3.11.2026)
+
+`EasyAPI.dll` (9 841 664 B, sha256 `b6c109ad…ba9c360d`, PE32/x86) and `EasyAPI2.dll`
+(14 748 160 B) are packed: every section header reports size `0` and the code lives in a
+`.vmp0` section. Ghidra 12.1.4 imports the DLL and finishes auto-analysis in 7 s, but
+resolves **zero** procedures by name — searching procedures for `Samsung` returns nothing.
+The bodies are closed to us. What packing leaves intact is the **export table**, and the
+export names are themselves the finding (106 exports in V1, 114 in V2):
+
+| Export | What the name says |
+|---|---|
+| `eMMC_RPMB_Read`, `eMMC_RPMB_ReadCounter` | RPMB data read, and counter read |
+| `eMMC_SamsungBootTrickCMDInit` / `…CMDFinish` | the boot trick as a **two-stage** operation |
+| `eMMC_SamsungBootRPMBChangeInit` / `…Finish` | changing the boot/RPMB relation, also two-stage |
+| `eMMC_SamsungDumpFirmware` | reading the *controller* firmware off the card |
+| `eMMC_SamsungRemoveWriteProtection` | write-protect removal as a single call |
+| `eMMC_SamsungVTU00MRepair` | a repair path named for exactly this controller family |
+| `eMMC_SamsungFactoryWriteCID`, `eMMC_SamsungFactoryWriteCSD`, `eMMC_WriteCSD`, `eMMC_extCSD_SingleItemWrite` | identity and configuration rewriting |
+| `eMMC_SamsungFactoryResetCMD`, `eMMC_FactoryResetCMD42`, `eMMC_OTPGetSize/GetStatus/Lock/Unlock`, `eMMC_JEDEC_HWPART_CONFIG`, `eMMC_Switch_Part`, `eMMC_LockUnlockPassword` | the rest of the maintenance surface |
+| `BoxSetDFUMode`, `BoxAESEncrypt`, `BoxAESDecrypt`, `BoxSECDecrypt`, `GetBoxFirmwareChar`, `SetBoxPinoutMode` | the box itself: DFU mode, crypto, pinout modes |
+
+Two conclusions follow from the names alone.
+
+1. **There is no eMMC key export.** The only key-named exports in either DLL are
+   `UFS_SetRPMBKey`, `UFS_ProgramRPMBKey`, `UFS_CheckRPMBKey` — the UFS namespace, not eMMC.
+   This API can read RPMB data and the RPMB counter; it exposes no way to program or export
+   an eMMC key.
+2. `eMMC_SamsungDumpFirmware` proves that a controller-firmware **read** path exists on this
+   box. That is precisely the primitive our T48 lacks, and it is the precondition for doing a
+   card firmware update at all (attack tree, node K).
+
+### What 694 log files of this tool contain (measured 3.11.2026)
+
+A local installation carries its own protocol history: `Logs/`, 694 files, 11 MB, tool
+versions 1.6.4.0 – 2.0.2.0, April 2021 – April 2023. Counted, with identifiers and hex runs
+left out on purpose:
+
+| observation | count |
+|---|---|
+| RPMB verdict lines | 800 |
+| … with counter = 0, verdict `Clean` | 244 |
+| … with counter = 0, verdict `Maybe not clean` | 130 |
+| … with counter > 0, verdict `Not Clean` | 426, no exception |
+| lines containing `identification` | **0** |
+| lines reporting a key | **0** — `valid` occurs only next to GPT headers |
+| lines containing `key` | every one of them is a *firmware-package partition name* |
+
+So the verdict is a pure function of the **written-word counter**, which JEDEC lets anyone
+read without a key: `Response: Clean` means "counter 0" and nothing more.
+
+The `key` lines are not RPMB at all. They are partitions of a phone firmware package
+(`*.tar.md5`, `*.pit`), unpacked from lz4 and written to ROM1 as ordinary user-area data —
+`keystorage` (512 KB, Raw), `keydata`, `keyrefuge`, `keystore`, `keymaster`, `omekeystore`,
+and `rpmbak` (512 KB, Raw). A partition literally named **rpmbak** is an RPMB backup kept in
+the user area. That is the first mechanism in this whole project that would let a device
+restore RPMB content without ever holding a key, and it is checkable on our own boards:
+search the partition tables we have for those names.
+
+### What this does not settle
+
+A host log records what the host chose to write down. The box firmware is not readable to us
+(`emmc.dat`, 65 536 B, high entropy, no vector table — encrypted), so an undocumented path
+cannot be ruled out from the host side. What we can say is this: in 11 MB of this tool's own
+history there is no key read, and the wording `RPMB key is VALID` does not occur in any of
+these versions. Issue #4 still stands, and it is now much sharper — ask about
+`eMMC_RPMB_Read` and `eMMC_SamsungBootTrickCMDInit/Finish` by name.
+
 ---
 
 ## 3. How these notes were produced
 
 Static analysis of the vendor binaries: string search, opcode table recovery, disassembly
-around command dispatch, and cross-reference walking. No dynamic analysis was performed,
-because the tools were never run.
+around command dispatch, cross-reference walking, export-table enumeration, and the reading
+of a log corpus that the installation left behind. No dynamic analysis was performed, because
+the tools were never run.
 
-That is the main limitation: **every finding above is unverified.** Verification requires
-either the hardware (Task C) or a second independent analysis of the same binary.
+That is the main limitation: **every inference from the binaries is unverified.** Verification
+requires either the hardware (Task C) or a second independent analysis of the same binary.
+The sections marked "measured" are counts over files already on our disk — reproducible, but
+still not a hardware run.

@@ -170,6 +170,10 @@ exact menu path matter more than prose.
   from*: two tool videos and the OP-TEE issue, our negative result, and the extCSD facts
   that constrain the write plan. Also in [German](docs/rpmb-key-findings.de.md) and
   [Chinese](docs/rpmb-key-findings.zh.md).
+* `docs/attack-tree.md` — the analysis plan as a tree: which branches are closed by
+  measurement, which are still open, and the cheapest experiment that settles each one.
+  This is also the checklist for contributors. Also in
+  [German](docs/attack-tree.de.md) and [Chinese](docs/attack-tree.zh.md).
 * `scripts/` — our Python driver for the T48 USB protocol and the probe scripts
   (`sub_op_probe.py`, `sub_op_timing.py`, `sub_op_capture.py`, `sub_op_stability.py`,
   `reply_width.py`, `vendor_forward_test.py`).

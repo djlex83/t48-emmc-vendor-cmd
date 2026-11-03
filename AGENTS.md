@@ -74,10 +74,23 @@ disassembly excerpt, the calling function, and the answer to A1.
 
 Goal: find where the displayed RPMB key comes from.
 
+Already measured, so that you do not repeat it (full numbers in `docs/ufpi-findings.md` §2):
+`EasyAPI.dll` and `EasyAPI2.dll` are packed — every section header reports size `0`, the code
+sits in `.vmp0`, and Ghidra resolves **zero** procedures by name. The **export table** is
+readable, and it contains no eMMC key function at all: there is `eMMC_RPMB_Read` and
+`eMMC_RPMB_ReadCounter`, plus the Samsung maintenance set
+(`eMMC_SamsungBootTrickCMDInit/Finish`, `eMMC_SamsungBootRPMBChangeInit/Finish`,
+`eMMC_SamsungDumpFirmware`, `eMMC_SamsungRemoveWriteProtection`, `eMMC_SamsungVTU00MRepair`).
+Key-named exports exist only in the UFS namespace (`UFS_SetRPMBKey`, `UFS_ProgramRPMBKey`,
+`UFS_CheckRPMBKey`). And in 694 log files of a real installation (11 MB, v1.6.4–2.0.2),
+`identification` occurs 0 times, no line reports a key, and all 800 RPMB verdicts follow the
+written-word counter alone.
+
 Concrete steps:
 
-1. Locate the RPMB-key display function (strings such as `RPMB`, `Key`, `KEY`, `CID`,
-   `Boot Config`, `Boot1`, `Boot2` are useful starting points).
+1. Work from the export **names** above and from the tool's own `Logs/` folder — these
+   binaries will not give up code. If you have a different (unpacked) build, then start from
+   strings such as `RPMB`, `Key`, `KEY`, `CID`, `Boot Config`, `Boot1`, `Boot2`.
 2. Walk backwards from the display to the value source. Two shapes are possible:
    * a block-read path (LBA-based, sector reads, `0x20000000` area) → metadata on the card;
    * a controller/RAM path (firmware activate, CMD62, backdoor) → controller RAM.
@@ -86,6 +99,9 @@ Concrete steps:
    came from a known structure.
 4. Report the byte offsets, the partition (USER / BOOT1 / BOOT2 / metadata area), and the
    read primitive used.
+5. If you own the tool: run the RPMB read (`eMMC_RPMB_Read`, or whatever the RPMB tab calls
+   it) while capturing USB. One capture answers A1 and A2 better than any further static
+   work — and the export names above tell you exactly which function to press.
 
 **Deliverable:** an issue titled `EasyJTAG: RPMB key source`, with the read path and the
 card models the code branches on.

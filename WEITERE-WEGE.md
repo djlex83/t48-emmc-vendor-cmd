@@ -90,6 +90,42 @@ Punkt 1 und 2 sind Platinen-Reverse-Engineering. Punkt 3 ist gelöst.
 
 ### Der Ausweg: Differenzbildung statt Bitstream-Dekodierung
 
+**Messtechnisch widerlegt (3.11.2026).** Der Versuch ist durchgeführt; die Erwartung
+trifft nicht zu. Tabelle unten, Quelle: `xgecu/algorithm/`, dekomprimiert mit
+`alg_unrle.py`, 340 604 Byte = 170 302 16-Bit-Wörter pro Datei.
+
+| Paar | verschiedene Bytes | verschiedene Wörter |
+|---|---|---|
+| `GEN_18` vs `GEN_33` (nur IO-Standard verschieden) | 31 312 (9,19 %) | 23 278 (13,67 %) |
+| `EMMC_41_18` vs `EMMC_41_33` | 42 727 (12,54 %) | 31 552 (18,53 %) |
+| `EMMC_41_18` vs `EMMC_51_18` (gleiches IO, andere Variante) | 43 340 (12,72 %) | 32 040 (18,81 %) |
+| `EMMC_41_18` vs `NAND_15` (Familien-XOR) | 36 786 (10,80 %) | 27 127 (15,93 %) |
+| `NAND_15` vs `NAND_16` | 32 270 (9,47 %) | 24 055 (14,12 %) |
+| Selbstkontrolle: Datei gegen sich selbst | 0 | 0 |
+
+Der entscheidende Punkt ist die **Kontrastlosigkeit**: das Paar, das sich nur im IO-Standard
+unterscheiden sollte, differenziert sich kaum weniger als ein Familien-XOR — 9,19 % gegen
+10,80 %. Und die Differenzen liegen gleichmäßig über alle acht Bitpositionen und über den
+ganzen Strom verteilt, nicht in einem kleinen Attributfeld.
+
+Ursache: jede Variante ist ein **eigenständig gelegter und gerouteter** Entwurf, nicht ein
+parametrisierter Ableger. Ein XOR zweier vollständig gerouteter Spartan-6-Ströme zeigt
+daher alles mögliche — Routings, Frame-Adressen, Prüfwörter — aber nicht „die Bits, die den
+IO-Standard kodieren". Die Pinbelegung lässt sich auf diesem Weg **nicht** ableiten.
+
+Was für Weg 3 bleibt:
+
+- **Frame-Decodierung.** Spartan-6-Configuration-Frame-Adressierung (FAM-Register, Spalten-
+ und Blockadressen) stattdessen direkt parsen. Ist machbar, aber genau die Arbeit, die der
+  Diff vermeiden sollte.
+- **Upload-Mitschnitt.** Beim Hochladen zweier Varianten den FX2↔FPGA-Bus mitschneiden —
+  braucht den Analysator und einen zweiten Satz Zugriff auf die Platine.
+- **Platinenseite.** Pinbelegung aus Fotos/Continuity-Tests am Sockel, nicht aus den Dateien.
+
+---
+
+### Der Ausweg, wie er ursprünglich gedacht war
+
 Ein Spartan-6-Bitstream vollständig zu dekodieren ist aufwendig. Für die Pinbelegung
 braucht man das auch nicht — **man kann bestehende Bitstreams gegeneinander diffen.**
 Zwei Beobachtungen machen das möglich:
@@ -101,8 +137,9 @@ Zwei Beobachtungen machen das möglich:
   Familien zeigt, welche IO-Sites je Familie überhaupt benutzt werden — also die
   Aufteilung des Sockels.
 
-Damit lässt sich die Pinbelegung **aus den vorhandenen Dateien** ableiten, ohne den
-Bitstream zu verstehen. Das ist der gangbare Weg.
+Damit ließe sich die Pinbelegung **aus den vorhandenen Dateien** ableiten, ohne den
+Bitstream zu verstehen. So der Plan — **er ist oben widerlegt**; die beiden Beobachtungen
+halten der Messung nicht stand.
 
 ### Teilschritte
 

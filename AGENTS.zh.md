@@ -67,16 +67,31 @@ CMD62 `0xEFAC62EC` / `0x10210002`）能否通过消费级编程器到达卡片�
 
 目标：找出显示的 RPMB 密钥来自哪里。
 
+已测部分（免得重复，完整数字见 `docs/ufpi-findings.zh.md` 第 2 节）：
+`EasyAPI.dll` 与 `EasyAPI2.dll` 都加了壳——每个节区头都报大小 `0`，代码在 `.vmp0` 节，
+Ghidra 解析出的具名函数为 **0** 个。**导出表**可读，而其中根本没有 eMMC 密钥函数：
+只有 `eMMC_RPMB_Read` 和 `eMMC_RPMB_ReadCounter`，加上三星维护函数集
+（`eMMC_SamsungBootTrickCMDInit/Finish`、`eMMC_SamsungBootRPMBChangeInit/Finish`、
+`eMMC_SamsungDumpFirmware`、`eMMC_SamsungRemoveWriteProtection`、`eMMC_SamsungVTU00MRepair`）。
+以 Key 命名的导出只存在于 UFS 命名域（`UFS_SetRPMBKey`、`UFS_ProgramRPMBKey`、
+`UFS_CheckRPMBKey`）。而在一份真实安装留下的 694 份日志（11 MB，v1.6.4–2.0.2）中，
+`identification` 出现 0 次，没有任何一行报告密钥，全部 800 条 RPMB 判定只由已写块
+计数器决定。
+
 步骤：
 
-1. 定位 RPMB 密钥显示函数（`RPMB`、`Key`、`KEY`、`CID`、`Boot Config`、`Boot1`、
-   `Boot2` 等字符串是好起点）。
+1. 从上面的导出**名称**和工具自带的 `Logs/` 目录入手——这些二进制给不出代码。
+   若你手上有另一个（未加壳）版本，则从 `RPMB`、`Key`、`KEY`、`CID`、`Boot Config`、
+   `Boot1`、`Boot2` 等字符串开始。
 2. 从显示处向前回溯到取值来源。有两种可能形态：
    * 块读取路径（基于 LBA、扇区读、`0x20000000` 区域）→ 卡上的元数据；
    * 控制器/RAM 路径（固件激活、CMD62、后门）→ 控制器 RAM。
 3. 检查显示前是否有哈希或校验步骤（据报告 EasyJTAG 会校验密钥）。校验意味着该值被
    *视为正确*，这反过来暗示它来自已知结构。
 4. 报告字节偏移、所在分区（USER / BOOT1 / BOOT2 / 元数据区），以及所用读取原语。
+5. 如果你拥有该工具：在抓 USB 包的同时运行 RPMB 读取（`eMMC_RPMB_Read`，或 RPMB
+   标签页对应的那个功能）。一次抓包比继续静态分析更能回答 A1 与 A2——上面的导出名
+   正好告诉你该按哪个功能。
 
 **交付物：** 一个标题为 `EasyJTAG: RPMB key source` 的 issue，含读取路径和代码分支所依据的卡型号。
 

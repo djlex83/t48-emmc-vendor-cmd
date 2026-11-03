@@ -78,12 +78,75 @@ UFPI 由主机通过 USB 驱动：PC 发送一个小的操作码字节，编程�
 并且在反复读取中保持不变。这更符合控制器状态变化（CMD60 固件激活），而不是静态
 元数据块。两个来源，两种机制。A2 与 Task C 正是为澄清这一点设立的。
 
+### 只有导出表是可读的（2026.11.03 实测）
+
+`EasyAPI.dll`（9 841 664 B，sha256 `b6c109ad…ba9c360d`，PE32/x86）与 `EasyAPI2.dll`
+（14 748 160 B）都加过壳：每个节区头都报大小 `0`，代码位于 `.vmp0` 节。Ghidra 12.1.4
+导入该 DLL 并在 7 秒内完成自动分析，但**一个**具名函数都解析不出来——按 `Samsung` 搜索
+函数返回空。函数体对我们是关闭的。加壳保留完好的是**导出表**，而导出名本身就是发现
+（V1 共 106 个导出，V2 共 114 个）：
+
+| 导出名 | 名称所表达的内容 |
+|---|---|
+| `eMMC_RPMB_Read`、`eMMC_RPMB_ReadCounter` | 读取 RPMB 数据，以及读取计数器 |
+| `eMMC_SamsungBootTrickCMDInit` / `…CMDFinish` | 启动技巧是一个**两段式**操作 |
+| `eMMC_SamsungBootRPMBChangeInit` / `…Finish` | 更改 boot/RPMB 关系，同样两段式 |
+| `eMMC_SamsungDumpFirmware` | 从卡上读取*控制器*固件 |
+| `eMMC_SamsungRemoveWriteProtection` | 去除写保护，一个调用 |
+| `eMMC_SamsungVTU00MRepair` | 以该控制器系列命名的修复路径 |
+| `eMMC_SamsungFactoryWriteCID`、`eMMC_SamsungFactoryWriteCSD`、`eMMC_WriteCSD`、`eMMC_extCSD_SingleItemWrite` | 改写标识与配置 |
+| `eMMC_SamsungFactoryResetCMD`、`eMMC_FactoryResetCMD42`、`eMMC_OTPGetSize/GetStatus/Lock/Unlock`、`eMMC_JEDEC_HWPART_CONFIG`、`eMMC_Switch_Part`、`eMMC_LockUnlockPassword` | 维护面的其余部分 |
+| `BoxSetDFUMode`、`BoxAESEncrypt`、`BoxAESDecrypt`、`BoxSECDecrypt`、`GetBoxFirmwareChar`、`SetBoxPinoutMode` | 盒子本身：DFU 模式、加密、引脚映射模式 |
+
+仅凭名称即可得出两个结论。
+
+1. **不存在 eMMC 密钥导出函数。** 两个 DLL 中唯一以 Key 命名的导出是 `UFS_SetRPMBKey`、
+   `UFS_ProgramRPMBKey`、`UFS_CheckRPMBKey`——那是 UFS 命名域，不是 eMMC。此 API 能读
+   RPMB 数据和 RPMB 计数器；它没有暴露任何编程或导出 eMMC 密钥的途径。
+2. `eMMC_SamsungDumpFirmware` 证明该盒子上存在控制器固件的**读取**通路。这正是我们的 T48
+   所缺的能力，也是敢于对卡做固件更新的前提（攻击树，节点 K）。
+
+### 该工具的 694 份日志文件里有什么（2026.11.03 实测）
+
+本地一份安装自带协议历史：`Logs/`，694 个文件，11 MB，工具版本 1.6.4.0 – 2.0.2.0，
+2021 年 4 月至 2023 年 4 月。统计结果，标识符与十六进制串已有意剔除：
+
+| 观察 | 计数 |
+|---|---|
+| RPMB 判定行 | 800 |
+| … 计数器 = 0，判定 `Clean` | 244 |
+| … 计数器 = 0，判定 `Maybe not clean` | 130 |
+| … 计数器 > 0，判定 `Not Clean` | 426，无一例外 |
+| 含 `identification` 的行 | **0** |
+| 报告密钥的行 | **0** — `valid` 只出现在 GPT 头旁边 |
+| 含 `key` 的行 | 全部是*固件包分区名* |
+
+因此判定值纯粹是**已写块计数器**的函数，而 JEDEC 允许任何人在没有密钥的情况下读它：
+`Response: Clean` 只意味着“计数器为 0"。
+
+那些 `key` 行与 RPMB 无关。它们是手机固件包（`*.tar.md5`、`*.pit`）中的分区，从 lz4 解包
+后作为普通用户区数据写入 ROM1：`keystorage`（512 KB，Raw）、`keydata`、`keyrefuge`、
+`keystore`、`keymaster`、`omekeystore`，以及 `rpmbak`（512 KB，Raw）。一个名字直叫
+**rpmbak** 的分区就是存放在用户区的 RPMB 备份。这是本项目里第一个让设备在完全不持有密钥
+的情况下恢复 RPMB 内容的机制，而且可以在我们自己的主板上验证：在我们已有的分区表里搜索
+这些名字。
+
+### 这没有解决什么
+
+主机日志只记录主机选择记录的内容。盒子固件对我们不可读（`emmc.dat`，65 536 B，高熵，
+无向量表——加密），因此无法从主机侧排除未文档化的通路。我们能说的是：在这套工具自己
+留下的 11 MB 日志里没有任何密钥读取，而 `RPMB key is VALID` 这一措辞在所有这些版本中
+都不出现。Issue #4 依然成立，只是现在具体得多——点名询问 `eMMC_RPMB_Read` 与
+`eMMC_SamsungBootTrickCMDInit/Finish`。
+
 ---
 
 ## 3. 这些笔记是如何产生的
 
-对厂商二进制的静态分析：字符串搜索、操作码表恢复、命令分发器附近的汇编分析，
-以及交叉引用追踪。没有做动态分析，因为这些工具从未被运行过。
+对厂商二进制的静态分析：字符串搜索、操作码表恢复、命令分发器附近的汇编分析、
+交叉引用追踪、导出表枚举，以及阅读一份安装留下的日志集。没有做动态分析，
+因为这些工具从未被运行过。
 
-这也是主要局限：**以上每一项发现都未经证实。** 验证需要硬件（Task C），
-或对同一二进制的第二次独立分析。
+这也是主要局限：**以上每一项从二进制得出的推论都未经证实。** 验证需要硬件（Task C），
+或对同一二进制的第二次独立分析。标注为“实测"的章节是对我们磁盘上已有文件的计数——
+可复现，但仍然不是硬件运行。
