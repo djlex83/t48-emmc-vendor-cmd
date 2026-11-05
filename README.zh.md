@@ -156,7 +156,9 @@ CMD18。我们有意没有发送 CMD38——在后门未打开时它是**擦除*
   以及每个分支最便宜的判定实验。同时也是贡献者的开工清单。
   另有[英文版](docs/attack-tree.md)与[德文版](docs/attack-tree.de.md)。
 * `scripts/` — 我们自己写的 T48 USB 协议驱动与探测脚本
-  （`sub_op_probe.py`、`sub_op_timing.py`、`sub_op_capture.py`、`sub_op_stability.py`、
+  （`t48_mmc.py` 是驱动：识别、CSD/extCSD、分区、批量读写、RPMB 帧、
+  `--voltage`/`--width` 配置选择与 `selftest`；另有 `sub_op_probe.py`、
+  `sub_op_timing.py`、`sub_op_capture.py`、`sub_op_stability.py`、
   `reply_width.py`、`vendor_forward_test.py`）。
 
 本仓库不含任何 RPMB 密钥材料、设备序列号或凭据。其中没有这类内容可被找到。

@@ -175,8 +175,10 @@ exact menu path matter more than prose.
   This is also the checklist for contributors. Also in
   [German](docs/attack-tree.de.md) and [Chinese](docs/attack-tree.zh.md).
 * `scripts/` — our Python driver for the T48 USB protocol and the probe scripts
-  (`sub_op_probe.py`, `sub_op_timing.py`, `sub_op_capture.py`, `sub_op_stability.py`,
-  `reply_width.py`, `vendor_forward_test.py`).
+  (`t48_mmc.py` is the driver: identify, CSD/extCSD, partitions, bulk read/write, RPMB
+  frames, profile selection with `--voltage`/`--width`, `selftest`; plus `sub_op_probe.py`,
+  `sub_op_timing.py`, `sub_op_capture.py`, `sub_op_stability.py`, `reply_width.py`,
+  `vendor_forward_test.py`).
 
 No RPMB key material, no device serial numbers and no credentials appear anywhere in this
 repository. There is nothing of that kind to find in it.
