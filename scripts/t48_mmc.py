@@ -67,7 +67,24 @@ EXIT_NO_DEVICE = 3
 EXIT_TIMEOUT = 4
 EXIT_MISMATCH = 5
 
-# BEGIN_TRANS: 64 Byte, eMMC-Profil 1 Bit / 1,8 V (protocol=0x31, variant=0x5100)
+# BEGIN_TRANS: 64 Byte. Der Blob ist kein Xgpro-Mitschnitt, sondern das
+# eMMC-Profil des Programmers; seine Bytes wurden gegen den Profil-Builder
+# (emmc_probe.py) und gegen Xgpro (FUN_00444bc0) aufgeschlüsselt:
+#
+#   [1]        0x31              protocol_id eMMC
+#   [2]        0x00              variant, niederes Byte (0x5100/0x5400 -> 0x00)
+#   [0x0c]     0x54              variant, hohes Byte = Bitstream-Kennung
+#   [0x3f]     0x54              dieselbe Kennung, gespiegelt am Blobende
+#                               (0x54 = EMMC_54 = 4 Bit, 0x51 = 1 Bit)
+#   [4] [5]    0x01 0x05         voltages-Wort LE: 0x0501 = 1,8 V, 0x0500 = 3,3 V
+#   [0x15]     0x01              voltages & 0x0f — das VCCQ-Select-Nibble
+#
+# Die Spannung steht also an DREI Stellen (4, 5 und 0x15). Der frühere
+# Kommentar "1 Bit / 1,8 V (variant=0x5100)" war falsch: der Blob fordert
+# 4 Bit an, und 1,8 V war unsere eigene Einstellung, keine Messung.
+# Am Gerät gemessen ist 3,3 V / 1 Bit (Bulk-Transfer), 1,8 V / 4 Bit
+# funktioniert für Identify/CSD/extCSD ebenfalls; ob die VCCQ-Schiene
+# wirklich schaltet, ist nicht gemessen. Beide Schalter: --voltage/--width.
 BEGIN_TRANS = bytes([
     0x03, 0x31, 0x00, 0x00, 0x01, 0x05, 0xa1, 0x00,
     0x20, 0x00, 0x00, 0x00, 0x54, 0x00, 0x20, 0x00,
@@ -79,8 +96,39 @@ BEGIN_TRANS = bytes([
     0x38, 0x08, 0x00, 0x00, 0x00, 0x00, 0x9e, 0x54,
 ])
 
-# STATUS spiegelt die Profilbytes von BEGIN_TRANS
-STATUS = bytes([0x39, 0x31, 0x00, 0x00, 0x01, 0x05, 0xa1, 0x00])
+# STATUS spiegelt BEGIN_TRANS[0:8], nur Byte 0 ist der Opcode 0x39. Abgeleitet
+# statt fest eingetragen: die voltage-Bytes [4]/[5] liegen innerhalb dieses
+# Fensters, eine Konstante würde nach --voltage 3.3 weiter 1,8 V behaupten.
+def status_packet():
+    return bytes([0x39]) + BEGIN_TRANS[1:8]
+
+# Profilbyte-Positionen in BEGIN_TRANS.
+BEGIN_OFF_VOLT_LOW = 0x04    # voltages-Niederbyte: 0x01 = 1,8 V, 0x00 = 3,3 V
+BEGIN_OFF_VOLT_HI = 0x05     # voltages-Oberbyte: 0x05 in beiden Profilen
+BEGIN_OFF_VCCQ = 0x15        # voltages-Nibble (v & 0x0f) — VCCQ-Select
+BEGIN_OFF_WIDTH = (0x0c, 0x3f)   # variant-Hochbyte: 0x54 = 4 Bit, 0x51 = 1 Bit
+VOLTAGES = {"1.8": 0x0501, "3.3": 0x0500}
+
+
+def set_profile(voltage, width):
+    """Schreibt VCCQ und Busbreite in BEGIN_TRANS.
+
+    Standard ist der Blob oben (1,8 V / 4 Bit); mit "1.8" und 4 ändert sich
+    nichts. Die Spannung sitzt an drei Stellen ([4] und [5] als voltages-Wort,
+    [0x15] als Nibble) — wer nur [0x15] umschreibt, sendet ein halbes 3,3-V-
+    Profil. Ein falsches Profil äußert sich als ausbleibende Antwort auf den
+    extCSD-Read oder als wedge; nach einem wedge hilft nur Umstecken.
+    """
+    global BEGIN_TRANS
+    b = bytearray(BEGIN_TRANS)
+    v = VOLTAGES[voltage]
+    b[BEGIN_OFF_VOLT_LOW] = v & 0xff
+    b[BEGIN_OFF_VOLT_HI] = (v >> 8) & 0xff
+    b[BEGIN_OFF_VCCQ] = v & 0x0f
+    code = 0x54 if width == 4 else 0x51
+    for off in BEGIN_OFF_WIDTH:
+        b[off] = code
+    BEGIN_TRANS = bytes(b)
 
 END_TRANS = bytes([0x04, 0x01, 0x00, 0x00])
 
@@ -380,12 +428,12 @@ class T48:
 
     def begin(self):
         self.write(BEGIN_TRANS)
-        self.write(STATUS)
+        self.write(status_packet())
         # Chip-Initialisierung: im Mitschnitt vergingen hier 271 ms
         return self.read(EP_CMD_IN, 32, timeout=10000)
 
     def status(self):
-        return self.request(STATUS, EP_CMD_IN, 32)
+        return self.request(status_packet(), EP_CMD_IN, 32)
 
     def capabilities(self):
         return self.request(bytes([0x21, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
@@ -769,7 +817,7 @@ class T48:
         TimeOut" (Programmierung noch nicht fertig), sonst gelten Code (u16
         bei +2) und Statusregister (u32 bei +4).
         """
-        self.write(STATUS)
+        self.write(status_packet())
         r = self.read(EP_CMD_IN, 32, timeout=timeout)
         if r[0] == 0x02:
             raise T48Error("EMMC Running TimeOut (Programmierung läuft noch)",
@@ -1018,7 +1066,13 @@ class T48:
 
     def rpmb_read_data(self, address, block_count=1, nonce=None,
                        timeout=10000):
-        """Typ 4: Lesen ohne MAC (Result 0x0001, da keine Authentifizierung)."""
+        """Typ 4: liefert keine RPMB-Daten über den T48.
+
+        Mit block_count >= 1 antwortet der Programmer immer 0x0001 — auch bei
+        korrektem MAC, der CMD18-Datenpfad bricht hier ab. Das ist also kein
+        Beleg für "Auth nötig". Mit block_count = 0 kommt 0x0000 samt echter
+        MAC. Eine Key-Prüfung gehört deshalb in rpmb_read_counter (Typ 2).
+        """
         nonce = os.urandom(16) if nonce is None else nonce
         frame = self.rpmb_frame(self.RPMB_READ_DATA, address=address,
                                 block_count=block_count, nonce=nonce)
@@ -1157,6 +1211,41 @@ def selftest():
           area_warning(ext, 0, 0x01D1F000, 1) is not None
           and area_warning(ext, 0, 0, 1) is None)
 
+    # Profilbytes im BEGIN_TRANS: der Blob oben ist unverändert die Referenz
+    check("BEGIN_TRANS Länge", len(BEGIN_TRANS) == 64)
+    check("BEGIN_TRANS eMMC-Protokoll", BEGIN_TRANS[1] == 0x31
+          and BEGIN_TRANS[2:4] == b"\x00\x00")
+    check("BEGIN_TRANS Standardprofil 1,8 V / 4 Bit",
+          BEGIN_TRANS[BEGIN_OFF_VOLT_LOW] == 0x01
+          and BEGIN_TRANS[BEGIN_OFF_VOLT_HI] == 0x05
+          and BEGIN_TRANS[BEGIN_OFF_VCCQ] == 0x01
+          and BEGIN_TRANS[0x0c] == 0x54 and BEGIN_TRANS[0x3f] == 0x54)
+    check("STATUS spiegelt BEGIN_TRANS[0:8]",
+          status_packet() == bytes([0x39]) + BEGIN_TRANS[1:8])
+    check("STATUS Standardprofil wie im Mitschnitt",
+          status_packet() == bytes([0x39, 0x31, 0x00, 0x00, 0x01, 0x05, 0xa1, 0x00]))
+    try:
+        set_profile("3.3", 1)
+        check("set_profile 3,3 V / 1 Bit (beide Spannungsbytes)",
+              BEGIN_TRANS[BEGIN_OFF_VOLT_LOW] == 0x00
+              and BEGIN_TRANS[BEGIN_OFF_VOLT_HI] == 0x05
+              and BEGIN_TRANS[BEGIN_OFF_VCCQ] == 0x00
+              and BEGIN_TRANS[0x0c] == 0x51 and BEGIN_TRANS[0x3f] == 0x51)
+        check("STATUS folgt dem Spannungswechsel (Byte 4 = 0x00)",
+              status_packet()[4] == 0x00 and status_packet()[5] == 0x05)
+    finally:
+        set_profile("1.8", 4)
+    check("set_profile zurückgesetzt", BEGIN_TRANS == bytes([
+        0x03, 0x31, 0x00, 0x00, 0x01, 0x05, 0xa1, 0x00,
+        0x20, 0x00, 0x00, 0x00, 0x54, 0x00, 0x20, 0x00,
+        0x00, 0x02, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
+        0x03, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0xe5, 0x10, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x38, 0x08, 0x00, 0x00, 0x00, 0x00, 0x9e, 0x54,
+    ]))
+
     total = count["n"]
     if failures:
         for name in failures:
@@ -1193,6 +1282,12 @@ def build_parser():
                    version="t48_mmc %s" % VERSION)
     p.add_argument("--timeout", type=float, default=10.0, metavar="SEK",
                    help="USB-Timeout je Rahmen/Kommando (Standard 10 s)")
+    p.add_argument("--voltage", choices=("1.8", "3.3"), default="1.8",
+                   help="VCCQ-Wahl im BEGIN-Paket; schreibt [0x04]/[0x05] und "
+                        "[0x15] zusammen (Standard 1,8 V)")
+    p.add_argument("--width", type=int, choices=(1, 4), default=4,
+                   help="Busbreite im BEGIN-Paket (0x0c/0x3f = 0x51/0x54); "
+                        "Standard 4 Bit")
     sub = p.add_subparsers(dest="cmd", metavar="<befehl>")
 
     s = sub.add_parser("info", help="Chip-Info und extCSD anzeigen")
@@ -1481,7 +1576,7 @@ def rpmb_result_text(code):
     return RPMB_RESULT_TEXT.get(code, "unbekannter Code")
 
 
-def run_rpmb_key_program(t, args, res):
+def run_rpmb_key_program(t, args, res=None):
     # Drei Sperren: Schreibfreigabe, eigene Bestätigung, und der Controller
     # selbst nimmt Typ 1 nur bei Schreibzähler 0 an.
     require_write_permission()
@@ -1516,8 +1611,10 @@ def run_rpmb_key_program(t, args, res):
     if r["result"] == 0x0000:
         print("Status      : angenommen. Der Zähler bleibt zunächst 0 (Typ 1")
         print("              zählt nicht). Sichtprüfung in einem NEUEN Aufruf:")
-        print("              'rpmb read 0 1' muss jetzt 0x0001 (Auth nötig) liefern")
-        print("              statt vorher 0x0007 (Key nicht programmiert).")
+        print("              'rpmb counter' muss jetzt Result 0x0000 und eine")
+        print("              echte MAC liefern statt 0x0007. 'rpmb read 0 1' taugt")
+        print("              als Prüfung nicht: 0x0001 kommt dort immer, auch mit")
+        print("              korrektem Key (block_count >= 1 = CMD18-Pfad).")
         return EXIT_OK
     if r["result"] == 0x0001:
         print("Status      : abgelehnt. Typische Ursache: Zähler ist nicht 0,")
@@ -1531,16 +1628,32 @@ def run_rpmb(t, args, res):
     if args.what == "counter":
         r = t.rpmb_read_counter(timeout=int(args.timeout * 1000))
         print("RPMB Typ 2 (Zähler)")
-        print("  Result    : 0x%04x" % r["result"])
+        print("  Result    : 0x%04x (%s)" % (r["result"],
+                                            rpmb_result_text(r["result"])))
         print("  Zähler    : %d (0x%08x)" % (r["counter"], r["counter"]))
         print("  Nonce ok  : %s" % r["nonce_ok"])
+        print("  MAC       : %s" % r["mac"].hex(" "))
+        if r["mac"] == bytes(32):
+            print("              ohne MAC — mit dieser Karte ist kein Key-Test")
+            print("              möglich (0x0007 = Key nie programmiert).")
+        elif r["result"] == 0x0000:
+            print("              echte MAC — dieser Rahmen ist das Orakel: Key-"
+                  "Kandidat mit HMAC über frame[228:512] prüfen, offline.")
+        print("  Antwort   : SHA-256 %s… (über alle 528 Byte, zum Wiederfinden "
+              "eines gespeicherten Rahmens)"
+              % hashlib.sha256(r["raw"]).hexdigest()[:16])
     elif args.what == "read":
         r = t.rpmb_read_data(args.value, args.blocks,
                              timeout=int(args.timeout * 1000))
         print("RPMB Typ 4 (Lesen ohne MAC), Adresse %d, %d Blöcke"
               % (args.value, args.blocks))
-        print("  Result    : 0x%04x (0x0001 = Authentifizierung nötig)"
-              % r["result"])
+        print("  Result    : 0x%04x (%s)" % (r["result"],
+                                            rpmb_result_text(r["result"])))
+        if args.blocks >= 1 and r["result"] == 0x0001:
+            print("  Hinweis   : 0x0001 heißt hier NICHT 'Auth nötig' — mit")
+            print("              block_count >= 1 scheitert der CMD18-Datenpfad am")
+            print("              Programmer immer, auch bei korrekter MAC.")
+            print("              Key-Prüfung geht nur über 'rpmb counter'.")
         print("  Nonce ok  : %s" % r["nonce_ok"])
         print("  Daten     : %s" % r["data"][:64].hex(" "))
     elif args.what == "key-program":
@@ -1595,6 +1708,13 @@ def main(argv=None):
     if args.timeout <= 0:
         err("--timeout muss > 0 sein")
         return EXIT_USAGE
+    if args.voltage != "1.8" or args.width != 4:
+        set_profile(args.voltage, args.width)
+        print("Profil: VCCQ %s V (BEGIN[0x04]=0x%02x, [0x15]=0x%02x), Bus %d Bit "
+              "(0x0c/0x3f=0x%02x)"
+              % (args.voltage, BEGIN_TRANS[BEGIN_OFF_VOLT_LOW],
+                 BEGIN_TRANS[BEGIN_OFF_VCCQ], args.width,
+                 BEGIN_TRANS[BEGIN_OFF_WIDTH[0]]))
 
     t = None
     try:

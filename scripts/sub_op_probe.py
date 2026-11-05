@@ -15,7 +15,7 @@ Daraus waeren CMD1 = 0x41, CMD60 = 0x7C, CMD62 = 0x7E.
 Gesendet werden ausschliesslich Kommandos ohne Datenphase und ohne Vendor-
 Magic. Keine Blockwrites, keine Loeschung, kein PARTITION_CONFIG.
 
-Aufruf: python3 -I sub_op_probe.py
+Aufruf: python3 sub_op_probe.py   (ohne -I: pyusb liegt im User-Site)
 """
 import os
 import sys

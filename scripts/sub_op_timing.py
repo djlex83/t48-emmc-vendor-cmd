@@ -15,7 +15,7 @@ Unterscheidung ueber zwei unabhaengige Signale:
      wohlgeformtes.
 
 Nur Kommandos ohne Datenphase, ohne Vendor-Magic, ohne Blockzugriff.
-Aufruf: python3 -I sub_op_timing.py   (hier ohne -I, siehe sub_op_probe.py)
+Aufruf: python3 sub_op_timing.py   (ohne -I: pyusb liegt im User-Site)
 """
 import os
 import statistics
